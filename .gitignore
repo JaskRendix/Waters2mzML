@@ -1,0 +1,81 @@
+# -------------------------
+# Python
+# -------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging
+*.egg-info/
+*.egg
+dist/
+build/
+pip-wheel-metadata/
+
+# Byte-compiled / optimized / DLL files
+*.dll
+*.dylib
+
+# -------------------------
+# Testing
+# -------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -------------------------
+# Project-specific
+# -------------------------
+
+# Raw Waters data (never commit)
+raw_files/
+*.raw/
+
+# mzML output
+mzML_files/
+*.mzML
+*.mzML.gz
+
+# Annotation outputs
+*.txt
+*.tsv
+*.csv
+
+# Logs
+logs/
+*.log
+
+# Temporary working directories
+tmp/
+temp/
+scratch/
+
+# -------------------------
+# Docker
+# -------------------------
+docker-data/
+docker-cache/
+*.pid
+
+# -------------------------
+# OS files
+# -------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
