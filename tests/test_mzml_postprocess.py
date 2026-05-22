@@ -1,5 +1,3 @@
-import pytest
-
 from waters2mzml.mzml_postprocess import _fix_ms_levels, _renumber_scans
 
 

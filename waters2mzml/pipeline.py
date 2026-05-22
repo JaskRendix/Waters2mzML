@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 
-from .config import ConversionConfig, default_paths
-from .msconvert import run_msconvert
-from .mzml_postprocess import postprocess_mzml
-from .paths import clean_raw_folder, ensure_dirs, find_mzml_files, list_raw_folders
-from .raw_annotation import annotate_all_raw
+from .config import default_paths
+from .job import process_single_raw
+from .paths import clean_raw_folder, ensure_dirs, list_raw_folders
 
 
 def run_pipeline(
@@ -33,22 +30,18 @@ def run_pipeline(
         print("No .raw folders found.")
         return
 
-    ms2_list = annotate_all_raw(raw_dirs)
+    for idx, raw_dir in enumerate(raw_dirs, start=1):
+        print(f"[SEQ] ({idx}/{len(raw_dirs)}) Processing {raw_dir}")
+        result = process_single_raw(
+            raw_dir=raw_dir,
+            msconvert_path=paths.msconvert_path,
+            output_dir=paths.mzml_dir,
+            centroid=centroid,
+        )
 
-    config = ConversionConfig(centroid=centroid)
-    mzml_paths: list[Path] = []
-    for raw_dir in raw_dirs:
-        print(f"Converting {raw_dir} ...")
-        mzml_path = run_msconvert(paths.msconvert_path, raw_dir, config)
-        print(f"Conversion completed: {mzml_path}")
-        mzml_paths.append(mzml_path)
+        if not result.success:
+            print(f"  ERROR: {result.error}")
+        else:
+            print(f"  Wrote {result.mzml_path}")
 
-    # Post-process and move to output dir
-    for mzml_path, ms2 in zip(mzml_paths, ms2_list):
-        print(f"Annotating {mzml_path} ...")
-        postprocess_mzml(mzml_path, ms2)
-        dest = paths.mzml_dir / mzml_path.name
-        shutil.move(str(mzml_path), dest)
-        print(f"Annotated file written to {dest}")
-
-    print("\nannotation completed!\n")
+    print("\nAnnotation completed.\n")

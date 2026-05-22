@@ -25,13 +25,36 @@ def convert(
     base_dir: Path = typer.Option(
         Path.cwd(), "--base-dir", help="Base directory (default: CWD)"
     ),
+    jobs: int = typer.Option(1, "--jobs", "-j", help="Parallel workers"),
 ):
     """
     Convert Waters .raw data to mzML and annotate scans/MS levels.
     """
-    run_pipeline(
-        base_dir=base_dir, input_dir=input, output_dir=output, centroid=centroid
-    )
+    from .config import default_paths
+    from .parallel import run_parallel
+    from .paths import list_raw_folders
+    from .pipeline import run_pipeline
+
+    paths = default_paths(base_dir)
+    paths.raw_dir = input
+    paths.mzml_dir = output
+
+    raw_dirs = list_raw_folders(input)
+
+    if jobs == 1:
+        run_pipeline(base_dir, input, output, centroid)
+    else:
+        results = run_parallel(
+            raw_dirs=raw_dirs,
+            msconvert_path=paths.msconvert_path,
+            output_dir=output,
+            centroid=centroid,
+            jobs=jobs,
+        )
+
+        failures = [r for r in results if not r.success]
+        if failures:
+            raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

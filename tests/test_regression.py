@@ -39,7 +39,7 @@ def test_regression(make_fixture, tmp_path, monkeypatch, sample):
         return produced
 
     # IMPORTANT: patch the function where pipeline imports it
-    monkeypatch.setattr("waters2mzml.pipeline.run_msconvert", fake_msconvert)
+    monkeypatch.setattr("waters2mzml.job.run_msconvert", fake_msconvert)
 
     # Run pipeline
     out_dir = tmp_path / "out"

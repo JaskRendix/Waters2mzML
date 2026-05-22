@@ -42,7 +42,7 @@ def test_full_pipeline(tmp_path, monkeypatch):
             (sample_raw / f"FUNC{func:03d}{suffix}").write_text("dummy")
 
     # Patch msconvert
-    monkeypatch.setattr("waters2mzml.pipeline.run_msconvert", fake_msconvert)
+    monkeypatch.setattr("waters2mzml.job.run_msconvert", fake_msconvert)
 
     # Run pipeline
     run_pipeline(

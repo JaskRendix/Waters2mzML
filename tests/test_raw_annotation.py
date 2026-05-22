@@ -1,13 +1,8 @@
-import shutil
 from pathlib import Path
 
-import pytest
-
-from waters2mzml.raw_annotation import (
-    _find_last_function_header,
-    _find_lockmass_by_reference,
-    annotate_raw_folder,
-)
+from waters2mzml.raw_annotation import (_find_last_function_header,
+                                        _find_lockmass_by_reference,
+                                        annotate_raw_folder)
 
 
 def test_find_lockmass_by_reference():
