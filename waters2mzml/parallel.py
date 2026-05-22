@@ -13,7 +13,7 @@ def run_parallel(
     output_dir: Path,
     centroid: bool,
     jobs: int,
-    executor_class=ProcessPoolExecutor,   # <-- NEW
+    executor_class=ProcessPoolExecutor,  # <-- NEW
 ) -> list[JobResult]:
     """
     Parallel execution wrapper. Uses ProcessPoolExecutor by default,

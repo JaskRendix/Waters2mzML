@@ -45,7 +45,7 @@ def test_parallel_success(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=3,
-        executor_class=ThreadPoolExecutor,   # <-- FIX
+        executor_class=ThreadPoolExecutor,  # <-- FIX
     )
 
     assert len(results) == 3
@@ -75,7 +75,7 @@ def test_parallel_failure(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=2,
-        executor_class=ThreadPoolExecutor,   # <-- FIX
+        executor_class=ThreadPoolExecutor,  # <-- FIX
     )
 
     assert len(results) == 3
@@ -108,7 +108,7 @@ def test_parallel_mixed(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=3,
-        executor_class=ThreadPoolExecutor,   # <-- FIX
+        executor_class=ThreadPoolExecutor,  # <-- FIX
     )
 
     successes = [r for r in results if r.success]
@@ -148,7 +148,7 @@ def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=2,
-        executor_class=ThreadPoolExecutor,   # <-- FIX
+        executor_class=ThreadPoolExecutor,  # <-- FIX
     )
 
     assert max_active == 2
