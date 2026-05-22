@@ -152,3 +152,184 @@ def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
     )
 
     assert max_active == 2
+
+
+def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
+    """
+    Ensure run_parallel retries failed jobs and eventually succeeds.
+    """
+
+    call_count = {"n": 0}
+
+    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+        call_count["n"] += 1
+        # Fail the first two attempts, succeed on the third
+        if call_count["n"] < 3:
+            raise RuntimeError("temporary failure")
+        out = output_dir / f"{raw_dir.name}.mzML"
+        out.write_text("ok")
+        return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
+
+    monkeypatch.setattr(
+        "waters2mzml.parallel.process_single_raw", fake_process_single_raw
+    )
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    # Only one RAW dir to make retry counting deterministic
+    results = run_parallel(
+        raw_dirs=[raw_dirs[0]],
+        msconvert_path=Path("/fake/msconvert.exe"),
+        output_dir=output_dir,
+        centroid=False,
+        jobs=1,
+        retries=5,
+        executor_class=ThreadPoolExecutor,
+    )
+
+    assert len(results) == 1
+    assert results[0].success
+    assert call_count["n"] == 3  # 2 failures + 1 success
+
+
+def test_parallel_retry_exhaustion(monkeypatch, tmp_path, raw_dirs):
+    """
+    If all retries fail, run_parallel must return a failure JobResult.
+    """
+
+    def fake_process_single_raw(*args, **kwargs):
+        raise RuntimeError("always fails")
+
+    monkeypatch.setattr(
+        "waters2mzml.parallel.process_single_raw", fake_process_single_raw
+    )
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    results = run_parallel(
+        raw_dirs=[raw_dirs[0]],
+        msconvert_path=Path("/fake/msconvert.exe"),
+        output_dir=output_dir,
+        centroid=False,
+        jobs=1,
+        retries=3,
+        executor_class=ThreadPoolExecutor,
+    )
+
+    assert len(results) == 1
+    assert not results[0].success
+    assert "always fails" in results[0].error
+
+
+def test_parallel_retry_isolation(monkeypatch, tmp_path, raw_dirs):
+    """
+    Retries must apply per file, not globally.
+    One file fails repeatedly, the others succeed immediately.
+    """
+
+    call_count = {"bad": 0}
+
+    def fake_process_single_raw(raw_dir, *args, **kwargs):
+        if raw_dir.name == "sample1.raw":
+            call_count["bad"] += 1
+            raise RuntimeError("bad file")
+        out = tmp_path / "out" / f"{raw_dir.name}.mzML"
+        out.write_text("ok")
+        return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
+
+    monkeypatch.setattr(
+        "waters2mzml.parallel.process_single_raw", fake_process_single_raw
+    )
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    results = run_parallel(
+        raw_dirs=raw_dirs,
+        msconvert_path=Path("/fake/msconvert.exe"),
+        output_dir=output_dir,
+        centroid=False,
+        jobs=3,
+        retries=2,
+        executor_class=ThreadPoolExecutor,
+    )
+
+    # sample1.raw should have failed after 3 attempts (1 + 2 retries)
+    assert call_count["bad"] == 3
+
+    # Check result distribution
+    successes = [r for r in results if r.success]
+    failures = [r for r in results if not r.success]
+
+    assert len(successes) == 2
+    assert len(failures) == 1
+    assert failures[0].raw_dir.name == "sample1.raw"
+
+
+def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
+    """
+    Some files succeed after retries, others fail even after all retries.
+    """
+
+    # Keys must match raw_dir.name exactly
+    call_count = {
+        "sample0.raw": 0,
+        "sample1.raw": 0,
+        "sample2.raw": 0,
+    }
+
+    def fake_process_single_raw(raw_dir, *args, **kwargs):
+        name = raw_dir.name
+        call_count[name] += 1
+
+        # sample0.raw succeeds on 3rd attempt
+        if name == "sample0.raw":
+            if call_count[name] < 3:
+                raise RuntimeError("temporary")
+            out = tmp_path / "out" / f"{name}.mzML"
+            out.write_text("ok")
+            return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
+
+        # sample1.raw always fails
+        if name == "sample1.raw":
+            raise RuntimeError("permanent")
+
+        # sample2.raw succeeds immediately
+        out = tmp_path / "out" / f"{name}.mzML"
+        out.write_text("ok")
+        return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
+
+    monkeypatch.setattr(
+        "waters2mzml.parallel.process_single_raw", fake_process_single_raw
+    )
+
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    results = run_parallel(
+        raw_dirs=raw_dirs,
+        msconvert_path=Path("/fake/msconvert.exe"),
+        output_dir=output_dir,
+        centroid=False,
+        jobs=3,
+        retries=5,
+        executor_class=ThreadPoolExecutor,
+    )
+
+    # sample0.raw should have 3 attempts
+    assert call_count["sample0.raw"] == 3
+
+    # sample1.raw should have 6 attempts (1 + 5 retries)
+    assert call_count["sample1.raw"] == 6
+
+    # sample2.raw should have 1 attempt
+    assert call_count["sample2.raw"] == 1
+
+    successes = [r for r in results if r.success]
+    failures = [r for r in results if not r.success]
+
+    assert len(successes) == 2
+    assert len(failures) == 1
+    assert failures[0].raw_dir.name == "sample1.raw"
