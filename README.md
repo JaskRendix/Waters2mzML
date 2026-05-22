@@ -2,14 +2,15 @@
 
 Waters2mzML converts Waters `.raw` MS¹ and MSⁿ data (MSe and DDA) into structured `.mzML` files and applies post‑processing steps to correct metadata, MS levels, and scan numbering. The output is compatible with tools such as MZmine 3.
 
-The project is a Python package with a modular pipeline:
+The project is a modular Python package built around a reproducible conversion pipeline:
 
 - conversion through ProteoWizard `msconvert`
 - extraction of acquisition metadata from Waters `_extern` files
 - annotation of MS levels and precursor information
 - mzML post‑processing and scan renumbering
+- optional parallel execution with retry logic
 
-The implementation is platform‑agnostic at the Python level. Conversion still depends on ProteoWizard availability on the host system.
+Conversion depends on ProteoWizard availability on the host system.
 
 Repository: [https://github.com/AnP311/Waters2mzML](https://github.com/AnP311/Waters2mzML)
 
@@ -18,19 +19,21 @@ Repository: [https://github.com/AnP311/Waters2mzML](https://github.com/AnP311/Wa
 ## **Features**
 
 - Parse Waters `_extern` metadata  
-- Identify and remove non‑analytical functions (e.g., lockmass)  
+- Identify and remove non‑analytical functions  
 - Assign MS levels for MS¹, MSe, and DDA  
 - Reconstruct precursor information when present  
 - Convert `.raw` to `.mzML` through `msconvert`  
-- Renumber scans and correct metadata in the resulting `.mzML`  
-- Provide a CLI entry point (`waters2mzml`)  
-- Include unit, integration, and regression tests  
+- Renumber scans and correct metadata in the `.mzML`  
+- Parallel execution with configurable worker count  
+- Retry logic for failed jobs  
+- CLI entry point (`waters2mzml`)  
+- Unit, integration, and regression tests  
 
 ---
 
 ## **Supported Data**
 
-Tested on:
+Validated on:
 
 - Waters Synapt G2‑Si  
 - Waters Xevo G2 (DDA)  
@@ -42,9 +45,7 @@ Other Waters instruments may work if their `_extern` format matches the tested v
 
 ## **Installation**
 
-Not yet published to PyPI.
-
-For development:
+Development installation:
 
 ```
 pip install -e ".[test]"
@@ -54,28 +55,28 @@ pip install -e ".[test]"
 
 ## **Usage**
 
-Run the full pipeline on one or more `.raw` directories:
+Convert one or more `.raw` directories:
 
 ```
-waters2mzml convert path/to/raw_files/ --out path/to/mzml/
+waters2mzml convert path/to/raw/ --out path/to/mzml/
 ```
 
-The CLI handles:
+The CLI performs:
 
-- locating `msconvert`
-- running the conversion
-- applying raw annotation
-- applying mzML post‑processing
+- raw annotation  
+- msconvert execution  
+- mzML post‑processing  
+- optional parallel execution  
 
-See `waters2mzml --help` for all commands and options.
+Run `waters2mzml --help` for all options.
 
 ---
 
 ## **Processing Notes**
 
-### **Function Ordering**
+### **Function Roles**
 
-The pipeline infers function roles from the `_extern` file:
+Function roles are inferred from the `_extern` file:
 
 - Function 1 → MS¹  
 - Subsequent functions → MS² (MSe or DDA)  
@@ -84,29 +85,36 @@ The pipeline infers function roles from the `_extern` file:
 
 ### **MSe Precursor Assignment**
 
-For MSe data, the pipeline assigns a precursor m/z based on the isolation window defined in the raw metadata. This reflects the acquisition setup but may not be required by all downstream tools.
+For MSe data, precursor m/z values are assigned from the isolation window defined in the raw metadata.
 
-### **Profile vs. Centroid**
+### **Centroiding**
 
-Centroiding is delegated to ProteoWizard.  
-If profile data is present, the user can enable peak picking through the CLI.
+Centroiding is handled by ProteoWizard.  
+Peak picking can be enabled through the CLI.
+
+### **Parallel Execution**
+
+Multiple `.raw` directories can be processed concurrently.  
+Each directory is handled as an isolated job.  
+Failed jobs can be retried a configurable number of times.
 
 ---
 
 ## **Development**
 
-The repository includes:
+The repository contains:
 
-- modular Python package (`waters2mzml/`)  
+- the Python package (`waters2mzml/`)  
 - test suite (`tests/`)  
-- CI workflow
+- CI workflow  
+- tests for parallel execution and retry logic  
 - modern packaging (`pyproject.toml`)  
 
 ---
 
 ## **Citation**
 
-If you use Waters2mzML in a publication, cite the repository and ProteoWizard:
+If you use Waters2mzML, cite the repository and ProteoWizard:
 
 - Chambers et al., *Nat. Biotechnol.* 30, 918–920 (2012)  
 - [https://proteowizard.sourceforge.io/tools/msconvert.html](https://proteowizard.sourceforge.io/tools/msconvert.html)  
