@@ -41,6 +41,10 @@ def run_pipeline(
             use_docker=use_docker,
         )
 
+        if result.warnings:
+            for w in result.warnings:
+                print(f"  WARNING: {w}")
+
         if not result.success:
             print(f"  ERROR: {result.error}")
         else:

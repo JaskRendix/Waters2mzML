@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import ConversionConfig
 from .msconvert import run_msconvert
 from .mzml_postprocess import postprocess_mzml
-from .raw_annotation import annotate_all_raw
+from .raw_annotation import annotate_all_raw, RawAnnotationResult
 
 
 @dataclass
@@ -15,6 +15,8 @@ class JobResult:
     mzml_path: Path | None
     success: bool
     error: str | None = None
+    warnings: list[str] = field(default_factory=list)
+    annotation: RawAnnotationResult | None = None
 
 
 def process_single_raw(
@@ -22,15 +24,15 @@ def process_single_raw(
     msconvert_path: Path,
     output_dir: Path,
     centroid: bool,
-    use_docker: bool = False,  # NEW
+    use_docker: bool = False,
 ) -> JobResult:
     """
     The unified job function used by BOTH sequential and parallel pipelines.
     """
     try:
         # 1) Annotate RAW (reads _extern)
-        res = annotate_all_raw([raw_dir])[0]
-        ms2 = res.lockmass_function
+        annotation = annotate_all_raw([raw_dir])[0]
+        ms2 = annotation.lockmass_function
 
         # 2) Convert with msconvert
         config = ConversionConfig(centroid=centroid, use_docker=use_docker)
@@ -47,6 +49,8 @@ def process_single_raw(
             raw_dir=raw_dir,
             mzml_path=dest,
             success=True,
+            warnings=annotation.warnings,
+            annotation=annotation,
         )
 
     except Exception as exc:
