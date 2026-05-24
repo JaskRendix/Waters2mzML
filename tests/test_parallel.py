@@ -10,9 +10,6 @@ from waters2mzml.parallel import run_parallel
 
 @pytest.fixture
 def raw_dirs(tmp_path):
-    """
-    Create 3 fake .raw directories.
-    """
     dirs = []
     for i in range(3):
         d = tmp_path / f"sample{i}.raw"
@@ -22,10 +19,6 @@ def raw_dirs(tmp_path):
 
 
 def test_parallel_success(monkeypatch, tmp_path, raw_dirs):
-    """
-    Ensure run_parallel calls process_single_raw in parallel
-    and aggregates JobResult objects.
-    """
 
     def fake_process_single_raw(
         raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
@@ -57,9 +50,6 @@ def test_parallel_success(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_failure(monkeypatch, tmp_path, raw_dirs):
-    """
-    Ensure failures inside workers are captured and returned as JobResult(success=False).
-    """
 
     def fake_process_single_raw(
         raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
@@ -88,9 +78,6 @@ def test_parallel_failure(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_mixed(monkeypatch, tmp_path, raw_dirs):
-    """
-    Ensure mixed success/failure is handled correctly.
-    """
 
     def fake_process_single_raw(
         raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
@@ -126,9 +113,6 @@ def test_parallel_mixed(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
-    """
-    Ensure that jobs=N actually spawns N workers.
-    """
 
     active = 0
     max_active = 0
@@ -163,9 +147,6 @@ def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
-    """
-    Ensure run_parallel retries failed jobs and eventually succeeds.
-    """
 
     call_count = {"n": 0}
 
@@ -202,9 +183,6 @@ def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_retry_exhaustion(monkeypatch, tmp_path, raw_dirs):
-    """
-    If all retries fail, run_parallel must return a failure JobResult.
-    """
 
     def fake_process_single_raw(*args, **kwargs):
         raise RuntimeError("always fails")
@@ -232,11 +210,6 @@ def test_parallel_retry_exhaustion(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_retry_isolation(monkeypatch, tmp_path, raw_dirs):
-    """
-    Retries must apply per file, not globally.
-    One file fails repeatedly, the others succeed immediately.
-    """
-
     call_count = {"bad": 0}
 
     def fake_process_single_raw(raw_dir, *args, **kwargs):
@@ -275,10 +248,6 @@ def test_parallel_retry_isolation(monkeypatch, tmp_path, raw_dirs):
 
 
 def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
-    """
-    Some files succeed after retries, others fail even after all retries.
-    """
-
     call_count = {
         "sample0.raw": 0,
         "sample1.raw": 0,

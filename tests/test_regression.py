@@ -19,16 +19,6 @@ from waters2mzml.pipeline import run_pipeline
     ],
 )
 def test_regression(make_fixture, tmp_path, monkeypatch, sample):
-    """
-    Full regression test using synthetic fixtures created by make_fixture.
-
-    Steps:
-    - Create synthetic .raw folder + expected mzML
-    - Monkeypatch msconvert so pipeline never calls external binaries
-    - Run full pipeline
-    - Compare produced mzML to expected output
-    """
-
     # Create raw folder + expected mzML
     raw_dir, expected_mzml = make_fixture(tmp_path, sample)
 

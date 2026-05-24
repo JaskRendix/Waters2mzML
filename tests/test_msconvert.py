@@ -33,7 +33,6 @@ def config_docker():
 
 
 def test_run_msconvert_native_invokes_subprocess(raw_path, config_native, monkeypatch):
-    """Ensure native mode calls subprocess with correct arguments."""
     calls = []
 
     def fake_call(cmd, shell):
@@ -52,7 +51,6 @@ def test_run_msconvert_native_invokes_subprocess(raw_path, config_native, monkey
 
 
 def test_run_msconvert_native_error_propagates(raw_path, config_native, monkeypatch):
-    """Ensure subprocess errors bubble up."""
 
     def fake_call(cmd, shell):
         raise subprocess.CalledProcessError(1, cmd)
@@ -66,7 +64,6 @@ def test_run_msconvert_native_error_propagates(raw_path, config_native, monkeypa
 def test_run_msconvert_docker_invokes_correct_docker_command(
     raw_path, config_docker, monkeypatch
 ):
-    """Ensure docker mode constructs the correct docker run command."""
     calls = []
 
     def fake_call(cmd):
@@ -103,7 +100,6 @@ def test_run_msconvert_docker_invokes_correct_docker_command(
 
 
 def test_run_msconvert_docker_missing_image(raw_path, monkeypatch):
-    """If docker_image is None, the wrapper should fail early."""
     config = ConversionConfig(
         centroid=False,
         use_docker=True,
@@ -115,7 +111,6 @@ def test_run_msconvert_docker_missing_image(raw_path, monkeypatch):
 
 
 def test_run_msconvert_docker_error_propagates(raw_path, config_docker, monkeypatch):
-    """Ensure docker subprocess errors bubble up."""
 
     def fake_call(cmd):
         raise subprocess.CalledProcessError(1, cmd)
@@ -157,7 +152,6 @@ def test_run_msconvert_dispatches_to_docker(raw_path, config_docker, monkeypatch
 
 
 def test_build_args_default():
-    """Default config should not include peak picking."""
     cfg = ConversionConfig(
         centroid=False,
         use_docker=False,

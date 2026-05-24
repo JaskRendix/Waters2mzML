@@ -34,10 +34,6 @@ def mzml_skeleton(scans: list[tuple[int, int, int]]):
 
 @pytest.fixture
 def make_fixture():
-    """
-    Factory that creates any of the 10 synthetic fixtures.
-    Returns (raw_dir, expected_mzml_path).
-    """
 
     def _factory(base: Path, name: str):
         # DO NOT overwrite base

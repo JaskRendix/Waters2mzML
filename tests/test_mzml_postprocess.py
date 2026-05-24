@@ -2,11 +2,6 @@ from waters2mzml.mzml_postprocess import _fix_ms_levels, _renumber_scans
 
 
 def test_renumber_scans_simple():
-    """
-    Synthetic mzML snippet with 2 spectra.
-    Original script states:
-    'every spectrum will be referenced 3 times'
-    """
     lines = [
         '<spectrumList count="2">',
         '<spectrum id="scan=1" ...>',
@@ -28,11 +23,6 @@ def test_renumber_scans_simple():
 
 
 def test_fix_ms_levels_changes_ms2():
-    """
-    Synthetic snippet where function=2 incorrectly has MS level 1.
-    Original script says:
-    'we check if the value of this first function 2 scan equals 1'
-    """
     lines = [
         '<spectrum id="scan=1" function=1>',
         '<cvParam name="ms level" value="1"/>',
@@ -51,9 +41,6 @@ def test_fix_ms_levels_changes_ms2():
 
 
 def test_fix_ms_levels_no_change_if_already_correct():
-    """
-    If function=2 already has MS level 2, nothing should change.
-    """
     lines = [
         '<spectrum id="scan=1" function=1>',
         '<cvParam name="ms level" value="1"/>',
