@@ -29,8 +29,8 @@ def process_single_raw(
     """
     try:
         # 1) Annotate RAW (reads _extern)
-        ms2_list = annotate_all_raw([raw_dir])
-        ms2 = ms2_list[0]
+        res = annotate_all_raw([raw_dir])[0]
+        ms2 = res.lockmass_function
 
         # 2) Convert with msconvert
         config = ConversionConfig(centroid=centroid, use_docker=use_docker)

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from waters2mzml.job import JobResult, process_single_raw
+from waters2mzml.raw_annotation import RawAnnotationResult
 
 
 def test_job_success(monkeypatch, tmp_path):
@@ -14,7 +15,17 @@ def test_job_success(monkeypatch, tmp_path):
     # Fake annotation: return one ms2 object
     def fake_annotate(raw_dirs):
         assert raw_dirs == [raw_dir]
-        return ["MS2-DATA"]
+        return [
+            RawAnnotationResult(
+                raw_dir=raw_dir,
+                lockmass_function=7,  # any int is fine
+                warnings=[],
+                errors=[],
+                extern_lines=1,
+                func_files_found=0,
+                func_files_deleted=0,
+            )
+        ]
 
     monkeypatch.setattr("waters2mzml.job.annotate_all_raw", fake_annotate)
 
@@ -30,7 +41,7 @@ def test_job_success(monkeypatch, tmp_path):
     # Fake postprocess: just assert correct args
     def fake_postprocess(mzml_path, ms2):
         assert mzml_path.name == "sample.mzML"
-        assert ms2 == "MS2-DATA"
+        assert ms2 == 7
 
     monkeypatch.setattr("waters2mzml.job.postprocess_mzml", fake_postprocess)
 
