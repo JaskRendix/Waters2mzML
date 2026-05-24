@@ -27,7 +27,9 @@ def test_parallel_success(monkeypatch, tmp_path, raw_dirs):
     and aggregates JobResult objects.
     """
 
-    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+    def fake_process_single_raw(
+        raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
+    ):
         out = output_dir / f"{raw_dir.name}.mzML"
         out.write_text("dummy")
         return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
@@ -45,7 +47,7 @@ def test_parallel_success(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=3,
-        executor_class=ThreadPoolExecutor,  # <-- FIX
+        executor_class=ThreadPoolExecutor,
     )
 
     assert len(results) == 3
@@ -59,7 +61,9 @@ def test_parallel_failure(monkeypatch, tmp_path, raw_dirs):
     Ensure failures inside workers are captured and returned as JobResult(success=False).
     """
 
-    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+    def fake_process_single_raw(
+        raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
+    ):
         raise RuntimeError(f"boom: {raw_dir.name}")
 
     monkeypatch.setattr(
@@ -75,7 +79,7 @@ def test_parallel_failure(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=2,
-        executor_class=ThreadPoolExecutor,  # <-- FIX
+        executor_class=ThreadPoolExecutor,
     )
 
     assert len(results) == 3
@@ -88,7 +92,9 @@ def test_parallel_mixed(monkeypatch, tmp_path, raw_dirs):
     Ensure mixed success/failure is handled correctly.
     """
 
-    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+    def fake_process_single_raw(
+        raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
+    ):
         if "1" in raw_dir.name:
             raise ValueError("bad sample")
         out = output_dir / f"{raw_dir.name}.mzML"
@@ -108,7 +114,7 @@ def test_parallel_mixed(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=3,
-        executor_class=ThreadPoolExecutor,  # <-- FIX
+        executor_class=ThreadPoolExecutor,
     )
 
     successes = [r for r in results if r.success]
@@ -127,7 +133,9 @@ def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
     active = 0
     max_active = 0
 
-    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+    def fake_process_single_raw(
+        raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
+    ):
         nonlocal active, max_active
         active += 1
         max_active = max(max_active, active)
@@ -148,7 +156,7 @@ def test_parallel_respects_jobs(monkeypatch, tmp_path, raw_dirs):
         output_dir=output_dir,
         centroid=False,
         jobs=2,
-        executor_class=ThreadPoolExecutor,  # <-- FIX
+        executor_class=ThreadPoolExecutor,
     )
 
     assert max_active == 2
@@ -161,9 +169,10 @@ def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
 
     call_count = {"n": 0}
 
-    def fake_process_single_raw(raw_dir, msconvert_path, output_dir, centroid):
+    def fake_process_single_raw(
+        raw_dir, msconvert_path, output_dir, centroid, *args, **kwargs
+    ):
         call_count["n"] += 1
-        # Fail the first two attempts, succeed on the third
         if call_count["n"] < 3:
             raise RuntimeError("temporary failure")
         out = output_dir / f"{raw_dir.name}.mzML"
@@ -177,7 +186,6 @@ def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
     output_dir = tmp_path / "out"
     output_dir.mkdir()
 
-    # Only one RAW dir to make retry counting deterministic
     results = run_parallel(
         raw_dirs=[raw_dirs[0]],
         msconvert_path=Path("/fake/msconvert.exe"),
@@ -190,7 +198,7 @@ def test_parallel_retries(monkeypatch, tmp_path, raw_dirs):
 
     assert len(results) == 1
     assert results[0].success
-    assert call_count["n"] == 3  # 2 failures + 1 success
+    assert call_count["n"] == 3
 
 
 def test_parallel_retry_exhaustion(monkeypatch, tmp_path, raw_dirs):
@@ -256,10 +264,8 @@ def test_parallel_retry_isolation(monkeypatch, tmp_path, raw_dirs):
         executor_class=ThreadPoolExecutor,
     )
 
-    # sample1.raw should have failed after 3 attempts (1 + 2 retries)
     assert call_count["bad"] == 3
 
-    # Check result distribution
     successes = [r for r in results if r.success]
     failures = [r for r in results if not r.success]
 
@@ -273,7 +279,6 @@ def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
     Some files succeed after retries, others fail even after all retries.
     """
 
-    # Keys must match raw_dir.name exactly
     call_count = {
         "sample0.raw": 0,
         "sample1.raw": 0,
@@ -284,7 +289,6 @@ def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
         name = raw_dir.name
         call_count[name] += 1
 
-        # sample0.raw succeeds on 3rd attempt
         if name == "sample0.raw":
             if call_count[name] < 3:
                 raise RuntimeError("temporary")
@@ -292,11 +296,9 @@ def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
             out.write_text("ok")
             return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
 
-        # sample1.raw always fails
         if name == "sample1.raw":
             raise RuntimeError("permanent")
 
-        # sample2.raw succeeds immediately
         out = tmp_path / "out" / f"{name}.mzML"
         out.write_text("ok")
         return JobResult(raw_dir=raw_dir, mzml_path=out, success=True)
@@ -318,13 +320,8 @@ def test_parallel_retry_mixed(monkeypatch, tmp_path, raw_dirs):
         executor_class=ThreadPoolExecutor,
     )
 
-    # sample0.raw should have 3 attempts
     assert call_count["sample0.raw"] == 3
-
-    # sample1.raw should have 6 attempts (1 + 5 retries)
     assert call_count["sample1.raw"] == 6
-
-    # sample2.raw should have 1 attempt
     assert call_count["sample2.raw"] == 1
 
     successes = [r for r in results if r.success]

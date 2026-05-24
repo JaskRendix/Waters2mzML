@@ -20,12 +20,17 @@ def convert(
     centroid: bool = typer.Option(
         False,
         "--centroid/--no-centroid",
-        help="Apply CWT peak picking (profile → centroid) like original script's 'y' option",
+        help="Apply CWT peak picking (profile → centroid)",
     ),
     base_dir: Path = typer.Option(
         Path.cwd(), "--base-dir", help="Base directory (default: CWD)"
     ),
     jobs: int = typer.Option(1, "--jobs", "-j", help="Parallel workers"),
+    docker: bool = typer.Option(
+        False,
+        "--docker",
+        help="Run msconvert inside a Docker container instead of a local executable",
+    ),
 ):
     """
     Convert Waters .raw data to mzML and annotate scans/MS levels.
@@ -33,7 +38,6 @@ def convert(
     from .config import default_paths
     from .parallel import run_parallel
     from .paths import list_raw_folders
-    from .pipeline import run_pipeline
 
     paths = default_paths(base_dir)
     paths.raw_dir = input
@@ -42,7 +46,13 @@ def convert(
     raw_dirs = list_raw_folders(input)
 
     if jobs == 1:
-        run_pipeline(base_dir, input, output, centroid)
+        run_pipeline(
+            base_dir,
+            input,
+            output,
+            centroid,
+            use_docker=docker,
+        )
     else:
         results = run_parallel(
             raw_dirs=raw_dirs,
@@ -50,6 +60,7 @@ def convert(
             output_dir=output,
             centroid=centroid,
             jobs=jobs,
+            use_docker=docker,
         )
 
         failures = [r for r in results if not r.success]

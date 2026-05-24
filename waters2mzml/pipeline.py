@@ -13,6 +13,7 @@ def run_pipeline(
     output_dir: Path | None,
     centroid: bool,
     skip_cleanup: bool = False,
+    use_docker: bool = False,
 ) -> None:
     paths = default_paths(base_dir)
     if input_dir is not None:
@@ -37,6 +38,7 @@ def run_pipeline(
             msconvert_path=paths.msconvert_path,
             output_dir=paths.mzml_dir,
             centroid=centroid,
+            use_docker=use_docker,
         )
 
         if not result.success:

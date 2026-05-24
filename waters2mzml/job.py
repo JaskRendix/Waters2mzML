@@ -22,6 +22,7 @@ def process_single_raw(
     msconvert_path: Path,
     output_dir: Path,
     centroid: bool,
+    use_docker: bool = False,  # NEW
 ) -> JobResult:
     """
     The unified job function used by BOTH sequential and parallel pipelines.
@@ -32,7 +33,7 @@ def process_single_raw(
         ms2 = ms2_list[0]
 
         # 2) Convert with msconvert
-        config = ConversionConfig(centroid=centroid)
+        config = ConversionConfig(centroid=centroid, use_docker=use_docker)
         mzml_path = run_msconvert(msconvert_path, raw_dir, config)
 
         # 3) Post-process mzML

@@ -10,13 +10,54 @@ def run_msconvert(
     msconvert_path: Path, raw_path: Path, config: ConversionConfig
 ) -> Path:
     """
-    Run msconvert on a single .raw folder/file and return the resulting mzML path(s).
-    Mirrors original:
-      subprocess.call(msconvert + " " + i + config)
+    Run msconvert on a single .raw folder/file and return the resulting mzML path.
     """
+    if config.use_docker:
+        return _run_msconvert_docker(raw_path, config)
+    else:
+        return _run_msconvert_native(msconvert_path, raw_path, config)
+
+
+def _run_msconvert_native(
+    msconvert_path: Path, raw_path: Path, config: ConversionConfig
+) -> Path:
     args = f'"{msconvert_path}" "{raw_path}" {config.build_msconvert_args()}'
-    # For now, simple call; later: check returncode, capture stderr, etc.
     subprocess.check_call(args, shell=True)
-    # msconvert writes mzML into same directory as input
-    mzml_path = raw_path.with_suffix(".mzML")
-    return mzml_path
+    return raw_path.with_suffix(".mzML")
+
+
+def _run_msconvert_docker(raw_path: Path, config: ConversionConfig) -> Path:
+    """
+    Run msconvert inside a Docker container.
+
+    We mount the parent directory of the .raw folder to /data inside the container
+    and call msconvert on /data/<raw_name>.raw, writing mzML next to it.
+    """
+    raw_path = raw_path.resolve()
+    host_dir = raw_path.parent
+    raw_name = raw_path.name
+
+    docker_image = config.docker_image
+    container_dir = "/data"
+    container_raw = f"{container_dir}/{raw_name}"
+
+    msconvert_cmd = (
+        f'msconvert "{container_raw}" {config.build_msconvert_args()} '
+        f'--outdir "{container_dir}"'
+    )
+
+    docker_args = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{host_dir}:{container_dir}",
+        docker_image,
+        "bash",
+        "-lc",
+        msconvert_cmd,
+    ]
+
+    subprocess.check_call(docker_args)
+
+    return raw_path.with_suffix(".mzML")

@@ -13,6 +13,7 @@ def _run_with_retries(
     output_dir: Path,
     centroid: bool,
     retries: int,
+    use_docker: bool,
 ) -> JobResult:
     last_exc = None
 
@@ -23,6 +24,7 @@ def _run_with_retries(
                 msconvert_path,
                 output_dir,
                 centroid,
+                use_docker=use_docker,
             )
         except Exception as exc:
             last_exc = exc
@@ -41,6 +43,7 @@ def run_parallel(
     output_dir: Path,
     centroid: bool,
     jobs: int,
+    use_docker: bool = False,
     retries: int = 0,
     executor_class=ProcessPoolExecutor,
 ) -> list[JobResult]:
@@ -60,6 +63,7 @@ def run_parallel(
                 output_dir,
                 centroid,
                 retries,
+                use_docker,
             ): raw_dir
             for raw_dir in raw_dirs
         }

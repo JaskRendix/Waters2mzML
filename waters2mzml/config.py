@@ -7,6 +7,8 @@ class ConversionConfig:
     centroid: bool
     ms_level_filter: str = "1-2"
     compression: str = "--zlib --32"
+    use_docker: bool = False
+    docker_image: str = "proteowizard/msconvert:latest"
 
     def build_msconvert_args(self) -> str:
         # Mirrors original config strings
