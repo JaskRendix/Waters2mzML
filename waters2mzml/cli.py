@@ -29,7 +29,7 @@ def convert(
     docker: bool = typer.Option(
         False,
         "--docker",
-        help="Run msconvert inside a Docker container instead of a local executable",
+        help="Run msconvert inside a Docker container (requires a user-provided image)",
     ),
 ):
     """

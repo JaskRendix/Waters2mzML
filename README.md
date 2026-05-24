@@ -53,6 +53,73 @@ pip install -e ".[test]"
 
 ---
 
+# **Docker Usage**
+
+Waters2mzML can run ProteoWizard `msconvert` inside a Docker container.  
+This enables full conversion on **Linux and macOS**, where native `msconvert.exe` is not available.
+
+Docker mode is fully integrated into the CLI and pipeline, but **Waters2mzML does not ship a Docker image**.  
+Users must provide their own image containing a working `msconvert` installation.
+
+---
+
+## **When to Use Docker Mode**
+
+Use Docker mode if:
+
+- you are on Linux or macOS  
+- you do not have a native ProteoWizard installation  
+- you want reproducible, isolated conversions  
+- you run Waters2mzML on servers, clusters, or CI systems  
+
+On Windows, native mode is usually faster.
+
+---
+
+## **Providing Your Own Docker Image**
+
+Because ProteoWizard binaries cannot be redistributed, Waters2mzML does **not** include a Dockerfile or a prebuilt image.
+
+To use Docker mode, you must supply an image that contains:
+
+- a working `msconvert.exe`  
+- Wine or another Windows compatibility layer  
+- an ENTRYPOINT that accepts standard msconvert arguments  
+
+You can specify the image via CLI:
+
+```
+waters2mzml convert --input raw/ --output mzml/ --docker --docker-image your/msconvert-image
+```
+
+Or configure it in `ConversionConfig`.
+
+---
+
+## **How Docker Mode Works**
+
+When `--docker` is enabled, Waters2mzML:
+
+- mounts the parent directory of each `.raw` folder into the container  
+- calls the container’s ENTRYPOINT with:  
+  ```
+  /data/<raw_name> <msconvert args> --outdir /data
+  ```
+- writes the resulting `.mzML` file back to the host filesystem  
+
+This makes Docker mode fully transparent to the rest of the pipeline.
+
+---
+
+## **Notes**
+
+- Waters2mzML does **not** build or distribute a Docker image.  
+- You must provide an image that contains a working msconvert installation.  
+- Docker mode requires the `docker` CLI to be available on the host.  
+- Output `.mzML` files are identical to native msconvert output except for timestamps.  
+
+---
+
 ## **Usage**
 
 Convert one or more `.raw` directories:

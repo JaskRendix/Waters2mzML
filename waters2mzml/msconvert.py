@@ -41,11 +41,6 @@ def _run_msconvert_docker(raw_path: Path, config: ConversionConfig) -> Path:
     container_dir = "/data"
     container_raw = f"{container_dir}/{raw_name}"
 
-    msconvert_cmd = (
-        f'msconvert "{container_raw}" {config.build_msconvert_args()} '
-        f'--outdir "{container_dir}"'
-    )
-
     docker_args = [
         "docker",
         "run",
@@ -53,9 +48,10 @@ def _run_msconvert_docker(raw_path: Path, config: ConversionConfig) -> Path:
         "-v",
         f"{host_dir}:{container_dir}",
         docker_image,
-        "bash",
-        "-lc",
-        msconvert_cmd,
+        container_raw,
+        *config.build_msconvert_args().split(),
+        "--outdir",
+        container_dir,
     ]
 
     subprocess.check_call(docker_args)
