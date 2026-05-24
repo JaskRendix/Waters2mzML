@@ -49,6 +49,7 @@ def test_regression(make_fixture, tmp_path, monkeypatch, sample):
         output_dir=out_dir,
         centroid=False,
         skip_cleanup=True,
+        do_postprocess=False,
     )
 
     # Compare output to expected

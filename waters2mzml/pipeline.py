@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from .config import default_paths
 from .job import process_single_raw
 from .paths import clean_raw_folder, ensure_dirs, list_raw_folders
@@ -14,6 +16,7 @@ def run_pipeline(
     centroid: bool,
     skip_cleanup: bool = False,
     use_docker: bool = False,
+    do_postprocess: bool = True,
 ) -> None:
     paths = default_paths(base_dir)
     if input_dir is not None:
@@ -39,6 +42,7 @@ def run_pipeline(
             output_dir=paths.mzml_dir,
             centroid=centroid,
             use_docker=use_docker,
+            do_postprocess=do_postprocess,
         )
 
         if result.warnings:
@@ -49,5 +53,11 @@ def run_pipeline(
             print(f"  ERROR: {result.error}")
         else:
             print(f"  Wrote {result.mzml_path}")
+
+        if result.qc:
+            print(f"  TIC points: {len(result.qc.tic)}")
+            print(f"  Max TIC: {max(result.qc.tic):.2f}")
+            print(f"  Max BPC: {max(result.qc.bpc):.2f}")
+            print(f"  Median peak count: {int(np.median(result.qc.peak_counts))}")
 
     print("\nAnnotation completed.\n")

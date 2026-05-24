@@ -6,7 +6,8 @@ from pathlib import Path
 from .config import ConversionConfig
 from .msconvert import run_msconvert
 from .mzml_postprocess import postprocess_mzml
-from .raw_annotation import annotate_all_raw, RawAnnotationResult
+from .qc import QCResult
+from .raw_annotation import RawAnnotationResult, annotate_all_raw
 
 
 @dataclass
@@ -17,6 +18,7 @@ class JobResult:
     error: str | None = None
     warnings: list[str] = field(default_factory=list)
     annotation: RawAnnotationResult | None = None
+    qc: QCResult | None = None
 
 
 def process_single_raw(
@@ -25,6 +27,7 @@ def process_single_raw(
     output_dir: Path,
     centroid: bool,
     use_docker: bool = False,
+    do_postprocess: bool = True,
 ) -> JobResult:
     """
     The unified job function used by BOTH sequential and parallel pipelines.
@@ -39,7 +42,10 @@ def process_single_raw(
         mzml_path = run_msconvert(msconvert_path, raw_dir, config)
 
         # 3) Post-process mzML
-        postprocess_mzml(mzml_path, ms2)
+        if do_postprocess:
+            qc = postprocess_mzml(mzml_path, ms2)
+        else:
+            qc = None
 
         # 4) Move to output directory
         dest = output_dir / mzml_path.name
@@ -51,6 +57,7 @@ def process_single_raw(
             success=True,
             warnings=annotation.warnings,
             annotation=annotation,
+            qc=qc,
         )
 
     except Exception as exc:
