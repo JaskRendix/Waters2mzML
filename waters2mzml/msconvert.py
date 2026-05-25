@@ -6,6 +6,17 @@ from pathlib import Path
 from .config import ConversionConfig
 
 
+class MsconvertError(RuntimeError):
+    """Failure while running msconvert (native or Docker)."""
+
+    def __init__(
+        self, message: str, returncode: int | None = None, stderr: str | None = None
+    ):
+        super().__init__(message)
+        self.returncode = returncode
+        self.stderr = stderr or ""
+
+
 def run_msconvert(
     msconvert_path: Path, raw_path: Path, config: ConversionConfig
 ) -> Path:
@@ -22,7 +33,13 @@ def _run_msconvert_native(
     msconvert_path: Path, raw_path: Path, config: ConversionConfig
 ) -> Path:
     args = f'"{msconvert_path}" "{raw_path}" {config.build_msconvert_args()}'
-    subprocess.check_call(args, shell=True)
+    proc = subprocess.run(args, shell=True, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise MsconvertError(
+            f"msconvert failed (native) with code {proc.returncode}",
+            returncode=proc.returncode,
+            stderr=proc.stderr,
+        )
     return raw_path.with_suffix(".mzML")
 
 
@@ -38,6 +55,11 @@ def _run_msconvert_docker(raw_path: Path, config: ConversionConfig) -> Path:
     raw_name = raw_path.name
 
     docker_image = config.docker_image
+    if not docker_image:
+        raise MsconvertError(
+            "Docker image is not configured for msconvert (docker_image is None)"
+        )
+
     container_dir = "/data"
     container_raw = f"{container_dir}/{raw_name}"
 
@@ -54,6 +76,12 @@ def _run_msconvert_docker(raw_path: Path, config: ConversionConfig) -> Path:
         container_dir,
     ]
 
-    subprocess.check_call(docker_args)
+    proc = subprocess.run(docker_args, capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise MsconvertError(
+            f"msconvert failed (docker) with code {proc.returncode}",
+            returncode=proc.returncode,
+            stderr=proc.stderr,
+        )
 
     return raw_path.with_suffix(".mzML")

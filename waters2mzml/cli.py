@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from .pipeline import run_pipeline
+from .pipeline import run_pipeline, run_pipeline_parallel
 
 app = typer.Typer(help="Waters .raw → .mzML conversion and annotation tool")
 
@@ -25,47 +25,48 @@ def convert(
     base_dir: Path = typer.Option(
         Path.cwd(), "--base-dir", help="Base directory (default: CWD)"
     ),
-    jobs: int = typer.Option(1, "--jobs", "-j", help="Parallel workers"),
+    parallel: int = typer.Option(
+        1,
+        "--parallel",
+        "-p",
+        help="Number of parallel workers (1 = sequential)",
+    ),
     docker: bool = typer.Option(
         False,
         "--docker",
         help="Run msconvert inside a Docker container (requires a user-provided image)",
     ),
+    retries: int = typer.Option(
+        0,
+        "--retries",
+        "-r",
+        help="Retry failed msconvert jobs this many times",
+    ),
 ):
     """
     Convert Waters .raw data to mzML and annotate scans/MS levels.
+    Supports both sequential and parallel execution.
     """
-    from .config import default_paths
-    from .parallel import run_parallel
-    from .paths import list_raw_folders
-
-    paths = default_paths(base_dir)
-    paths.raw_dir = input
-    paths.mzml_dir = output
-
-    raw_dirs = list_raw_folders(input)
-
-    if jobs == 1:
+    if parallel <= 1:
+        # Sequential pipeline
         run_pipeline(
-            base_dir,
-            input,
-            output,
-            centroid,
+            base_dir=base_dir,
+            input_dir=input,
+            output_dir=output,
+            centroid=centroid,
             use_docker=docker,
         )
     else:
-        results = run_parallel(
-            raw_dirs=raw_dirs,
-            msconvert_path=paths.msconvert_path,
+        # Parallel pipeline
+        run_pipeline_parallel(
+            base_dir=base_dir,
+            input_dir=input,
             output_dir=output,
             centroid=centroid,
-            jobs=jobs,
+            jobs=parallel,
             use_docker=docker,
+            retries=retries,
         )
-
-        failures = [r for r in results if not r.success]
-        if failures:
-            raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

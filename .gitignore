@@ -1,6 +1,4 @@
-# -------------------------
 # Python
-# -------------------------
 __pycache__/
 *.py[cod]
 *.pyo
@@ -23,25 +21,19 @@ pip-wheel-metadata/
 *.dll
 *.dylib
 
-# -------------------------
 # Testing
-# -------------------------
 .pytest_cache/
 .coverage
 htmlcov/
 .cache/
 
-# -------------------------
 # IDE / Editor
-# -------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# -------------------------
 # Project-specific
-# -------------------------
 
 # Raw Waters data (never commit)
 raw_files/
@@ -66,16 +58,12 @@ tmp/
 temp/
 scratch/
 
-# -------------------------
 # Docker
-# -------------------------
 docker-data/
 docker-cache/
 *.pid
 
-# -------------------------
 # OS files
-# -------------------------
 .DS_Store
 Thumbs.db
 desktop.ini

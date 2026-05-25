@@ -4,7 +4,12 @@ from pathlib import Path
 import pytest
 
 from waters2mzml.config import ConversionConfig
-from waters2mzml.msconvert import _run_msconvert_docker, run_msconvert
+from waters2mzml.msconvert import (
+    MsconvertError,
+    _run_msconvert_docker,
+    _run_msconvert_native,
+    run_msconvert,
+)
 
 
 @pytest.fixture
@@ -35,11 +40,11 @@ def config_docker():
 def test_run_msconvert_native_invokes_subprocess(raw_path, config_native, monkeypatch):
     calls = []
 
-    def fake_call(cmd, shell):
+    def fake_run(cmd, shell, capture_output, text):
         calls.append(cmd)
-        return 0
+        return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(subprocess, "check_call", fake_call)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
     msconvert_path = Path("/usr/bin/msconvert")
     out = run_msconvert(msconvert_path, raw_path, config_native)
@@ -50,14 +55,16 @@ def test_run_msconvert_native_invokes_subprocess(raw_path, config_native, monkey
     assert str(raw_path) in calls[0]
 
 
-def test_run_msconvert_native_error_propagates(raw_path, config_native, monkeypatch):
+def test_run_msconvert_native_error_raises_msconvert_error(
+    raw_path, config_native, monkeypatch
+):
 
-    def fake_call(cmd, shell):
-        raise subprocess.CalledProcessError(1, cmd)
+    def fake_run(cmd, shell, capture_output, text):
+        return subprocess.CompletedProcess(cmd, 127, "", "boom")
 
-    monkeypatch.setattr(subprocess, "check_call", fake_call)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(MsconvertError):
         run_msconvert(Path("/usr/bin/msconvert"), raw_path, config_native)
 
 
@@ -66,11 +73,11 @@ def test_run_msconvert_docker_invokes_correct_docker_command(
 ):
     calls = []
 
-    def fake_call(cmd):
+    def fake_run(cmd, capture_output, text):
         calls.append(cmd)
-        return 0
+        return subprocess.CompletedProcess(cmd, 0, "", "")
 
-    monkeypatch.setattr(subprocess, "check_call", fake_call)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
     out = _run_msconvert_docker(raw_path, config_docker)
 
@@ -99,25 +106,27 @@ def test_run_msconvert_docker_invokes_correct_docker_command(
     assert "/data" in cmd
 
 
-def test_run_msconvert_docker_missing_image(raw_path, monkeypatch):
+def test_run_msconvert_docker_missing_image_raises(raw_path):
     config = ConversionConfig(
         centroid=False,
         use_docker=True,
         docker_image=None,
     )
 
-    with pytest.raises(TypeError):
+    with pytest.raises(MsconvertError):
         _run_msconvert_docker(raw_path, config)
 
 
-def test_run_msconvert_docker_error_propagates(raw_path, config_docker, monkeypatch):
+def test_run_msconvert_docker_error_raises_msconvert_error(
+    raw_path, config_docker, monkeypatch
+):
 
-    def fake_call(cmd):
-        raise subprocess.CalledProcessError(1, cmd)
+    def fake_run(cmd, capture_output, text):
+        return subprocess.CompletedProcess(cmd, 125, "", "docker boom")
 
-    monkeypatch.setattr(subprocess, "check_call", fake_call)
+    monkeypatch.setattr(subprocess, "run", fake_run)
 
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(MsconvertError):
         _run_msconvert_docker(raw_path, config_docker)
 
 
@@ -160,7 +169,6 @@ def test_build_args_default():
 
     args = cfg.build_msconvert_args()
 
-    # No centroiding → no peak picking filter
     assert "peakPicking" not in args
 
 
@@ -173,7 +181,6 @@ def test_build_args_centroid_enabled():
 
     args = cfg.build_msconvert_args()
 
-    # msconvert uses CWT peak picking
     assert "--filter" in args
     assert "peakPicking" in args or "peakpicking" in args.lower()
 
@@ -199,7 +206,6 @@ def test_build_args_splits_cleanly():
     args = cfg.build_msconvert_args()
     tokens = args.split()
 
-    # No empty tokens
     assert all(t.strip() for t in tokens)
 
 
@@ -221,7 +227,6 @@ def test_build_args_custom_flags(monkeypatch):
         docker_image=None,
     )
 
-    # Monkeypatch a fake flag into the config
     def fake_build(self):
         return "--foo --bar=123"
 

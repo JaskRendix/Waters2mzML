@@ -11,11 +11,14 @@ def test_job_success(monkeypatch, tmp_path):
 
     # Fake annotation: return one ms2 object
     def fake_annotate(raw_dirs):
-        assert raw_dirs == [raw_dir]
+        # The redesigned engine passes a temp symlink/copy, not raw_dir
+        assert len(raw_dirs) == 1
+        job_raw = raw_dirs[0]
+        assert job_raw.name == raw_dir.name
         return [
             RawAnnotationResult(
-                raw_dir=raw_dir,
-                lockmass_function=7,  # any int is fine
+                raw_dir=job_raw,
+                lockmass_function=7,
                 warnings=[],
                 errors=[],
                 extern_lines=1,
@@ -28,7 +31,8 @@ def test_job_success(monkeypatch, tmp_path):
 
     # Fake msconvert: write a dummy mzML file
     def fake_msconvert(msconvert_path, raw_path, config):
-        assert raw_path == raw_dir
+        # raw_path is now the job-local symlink/copy
+        assert raw_path.name == raw_dir.name
         out = raw_path.with_suffix(".mzML")
         out.write_text("mzML")
         return out
