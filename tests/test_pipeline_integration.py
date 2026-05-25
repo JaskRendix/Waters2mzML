@@ -69,3 +69,40 @@ def test_full_pipeline(tmp_path, monkeypatch):
     assert "scan=1" in text
     assert "scan=2" in text
     assert 'value="2"' in text
+
+
+def test_pipeline_passes_docker_image(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_process(**kwargs):
+        called.update(kwargs)
+
+        class R:
+            success = True
+            warnings = []
+            qc = None
+            mzml_path = tmp_path / "x.mzML"
+            raw_dir = tmp_path / "raw/sample.raw"
+            error = None
+
+        return R()
+
+    monkeypatch.setattr("waters2mzml.pipeline.process_single_raw", fake_process)
+
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "sample.raw").mkdir()
+
+    out = tmp_path / "mzml"
+
+    run_pipeline(
+        base_dir=tmp_path,
+        input_dir=raw,
+        output_dir=out,
+        centroid=False,
+        use_docker=True,
+        docker_image="img",
+    )
+
+    assert called["use_docker"] is True
+    assert called["docker_image"] == "img"

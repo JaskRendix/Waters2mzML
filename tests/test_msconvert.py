@@ -235,3 +235,45 @@ def test_build_args_custom_flags(monkeypatch):
     args = cfg.build_msconvert_args()
     assert "--foo" in args
     assert "--bar=123" in args
+
+
+def test_docker_image_required(tmp_path):
+    raw = tmp_path / "sample.raw"
+    raw.mkdir()
+
+    cfg = ConversionConfig(centroid=False, use_docker=True, docker_image=None)
+
+    with pytest.raises(MsconvertError):
+        _run_msconvert_docker(raw, cfg)
+
+
+def test_docker_command_construction(monkeypatch, tmp_path):
+    raw = tmp_path / "sample.raw"
+    raw.mkdir()
+
+    cfg = ConversionConfig(
+        centroid=True,
+        use_docker=True,
+        docker_image="my/image",
+    )
+
+    captured = {}
+
+    def fake_run(cmd, capture_output, text):
+        captured["cmd"] = cmd
+
+        class P:
+            returncode = 0
+            stderr = ""
+
+        return P()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    _run_msconvert_docker(raw, cfg)
+
+    cmd = captured["cmd"]
+    assert cmd[0] == "docker"
+    assert "my/image" in cmd
+    assert "/data/sample.raw" in cmd
+    assert "--outdir" in cmd

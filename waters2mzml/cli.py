@@ -56,7 +56,12 @@ def convert(
     docker: bool = typer.Option(
         False,
         "--docker",
-        help="Run msconvert inside a Docker container (requires a user-provided image)",
+        help="Run msconvert inside a Docker container",
+    ),
+    docker_image: str | None = typer.Option(
+        None,
+        "--docker-image",
+        help="Docker image containing msconvert (required with --docker)",
     ),
     retries: int = typer.Option(
         0,
@@ -76,6 +81,9 @@ def convert(
     """
     setup_logging(log_level)
 
+    if docker and not docker_image:
+        raise typer.BadParameter("You must specify --docker-image when using --docker")
+
     if parallel <= 1:
         # Sequential pipeline
         run_pipeline(
@@ -84,6 +92,7 @@ def convert(
             output_dir=output,
             centroid=centroid,
             use_docker=docker,
+            docker_image=docker_image,
         )
     else:
         # Parallel pipeline
@@ -95,6 +104,7 @@ def convert(
             jobs=parallel,
             use_docker=docker,
             retries=retries,
+            docker_image=docker_image,
         )
 
 

@@ -58,6 +58,7 @@ def process_single_raw(
     output_dir: Path,
     centroid: bool,
     use_docker: bool = False,
+    docker_image: str | None = None,
     do_postprocess: bool = True,
 ) -> JobResult:
     """
@@ -77,7 +78,11 @@ def process_single_raw(
 
         # 2) Convert with msconvert
         logger.debug(f"Converting {raw_dir} with msconvert")
-        config = ConversionConfig(centroid=centroid, use_docker=use_docker)
+        config = ConversionConfig(
+            centroid=centroid,
+            use_docker=use_docker,
+            docker_image=docker_image,
+        )
         mzml_path = run_msconvert(msconvert_path, job_raw, config)
 
         # 3) Post-process

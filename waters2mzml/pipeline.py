@@ -20,6 +20,7 @@ def run_pipeline(
     centroid: bool,
     skip_cleanup: bool = False,
     use_docker: bool = False,
+    docker_image: str | None = None,
     do_postprocess: bool = True,
 ) -> None:
     paths = default_paths(base_dir)
@@ -50,6 +51,7 @@ def run_pipeline(
             output_dir=paths.mzml_dir,
             centroid=centroid,
             use_docker=use_docker,
+            docker_image=docker_image,
             do_postprocess=do_postprocess,
         )
 
@@ -81,15 +83,12 @@ def run_pipeline_parallel(
     jobs: int,
     skip_cleanup: bool = False,
     use_docker: bool = False,
+    docker_image: str | None = None,
     do_postprocess: bool = True,
     retries: int = 0,
 ) -> None:
     """
     Parallel version of run_pipeline using run_parallel.
-
-    - Same behavior as run_pipeline, but processes all RAW folders concurrently.
-    - Uses the redesigned run_parallel with per-job isolation and retry logic.
-    - Output is deterministic and matches the sequential pipeline's reporting style.
     """
     paths = default_paths(base_dir)
     if input_dir is not None:
@@ -116,6 +115,7 @@ def run_pipeline_parallel(
         centroid=centroid,
         jobs=jobs,
         use_docker=use_docker,
+        docker_image=docker_image,
         retries=retries,
         do_postprocess=do_postprocess,
     )
