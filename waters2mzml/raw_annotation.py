@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .validation import validate_raw_folder
+
 logger = logging.getLogger("waters2mzml.annotation")
 
 
@@ -249,6 +251,16 @@ def annotate_raw_folder(raw_dir: Path) -> RawAnnotationResult:
     ref = _find_lockmass_by_reference(lines)
     lockmass_fn, lockmass_warnings = _validate_lockmass(raw_dir, ref, last_fn)
     warnings.extend(lockmass_warnings)
+
+    validation_issues = validate_raw_folder(
+        raw_dir=raw_dir,
+        lines=lines,
+        lockmass_fn=lockmass_fn,
+        last_fn=last_fn,
+    )
+
+    for issue in validation_issues:
+        warnings.append(str(issue))
 
     # Use the cleaned reference for deletion
     clean_ref = str(lockmass_fn)
