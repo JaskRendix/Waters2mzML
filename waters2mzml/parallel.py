@@ -21,6 +21,16 @@ class RetryPolicy:
     backoff_factor: float = 2.0
 
 
+def _progress_bar(done: int, total: int, width: int = 30) -> str:
+    """
+    Render a simple text progress bar.
+    Example: [██████------] 6/12
+    """
+    filled = int(width * done / total)
+    bar = "█" * filled + "-" * (width - filled)
+    return f"[{bar}] {done}/{total}"
+
+
 def _is_retryable(exc: Exception) -> bool:
     return isinstance(exc, MsconvertError)
 
@@ -38,12 +48,13 @@ def _run_with_retries(
     do_postprocess: bool,
     retry_policy: RetryPolicy,
 ) -> JobResult:
+    start = time.perf_counter()
     last_exc: Exception | None = None
 
     for attempt in range(retry_policy.max_retries + 1):
         try:
             logger.debug(f"Starting job for {raw_dir} (attempt {attempt+1})")
-            return process_single_raw(
+            result = process_single_raw(
                 raw_dir=raw_dir,
                 msconvert_path=msconvert_path,
                 output_dir=output_dir,
@@ -51,11 +62,16 @@ def _run_with_retries(
                 use_docker=use_docker,
                 do_postprocess=do_postprocess,
             )
+            duration = time.perf_counter() - start
+            logger.info(f"Job completed for {raw_dir} in {duration:.2f}s")
+            return result
+
         except Exception as exc:
             last_exc = exc
 
             if not _is_retryable(exc):
-                logger.error(f"Fatal error on {raw_dir}: {exc}")
+                duration = time.perf_counter() - start
+                logger.error(f"Fatal error on {raw_dir} after {duration:.2f}s: {exc}")
                 return JobResult(
                     raw_dir=raw_dir,
                     mzml_path=None,
@@ -64,7 +80,10 @@ def _run_with_retries(
                 )
 
             if attempt == retry_policy.max_retries:
-                logger.error(f"Retries exhausted for {raw_dir}: {exc}")
+                duration = time.perf_counter() - start
+                logger.error(
+                    f"Retries exhausted for {raw_dir} after {duration:.2f}s: {exc}"
+                )
                 return JobResult(
                     raw_dir=raw_dir,
                     mzml_path=None,
@@ -79,6 +98,8 @@ def _run_with_retries(
             )
             time.sleep(delay)
 
+    duration = time.perf_counter() - start
+    logger.error(f"Unknown failure on {raw_dir} after {duration:.2f}s")
     return JobResult(
         raw_dir=raw_dir,
         mzml_path=None,
@@ -145,12 +166,17 @@ def run_parallel(
 
             results.append(result)
 
+            # Progress bar
+            bar = _progress_bar(idx, total)
             if result.success:
-                logger.info(f"[OK]   ({idx}/{total}) {raw_dir}")
+                logger.info(f"{bar} [OK]   {raw_dir}")
             else:
                 logger.error(
-                    f"[FAIL] ({idx}/{total}) {raw_dir} — {result.error.splitlines()[-1]}"
+                    f"{bar} [FAIL] {raw_dir} — {result.error.splitlines()[-1]}"
                 )
 
+    ok = sum(r.success for r in results)
+    fail = total - ok
+    logger.info(f"Completed {total} jobs: {ok} OK, {fail} failed")
     results.sort(key=lambda r: str(r.raw_dir))
     return results
