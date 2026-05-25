@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 import traceback
 from collections.abc import Iterable
@@ -10,19 +11,17 @@ from pathlib import Path
 from .job import JobResult, process_single_raw
 from .msconvert import MsconvertError
 
+logger = logging.getLogger("waters2mzml.parallel")
+
 
 @dataclass
 class RetryPolicy:
     max_retries: int = 0
-    base_delay: float = 1.0  # seconds
-    backoff_factor: float = 2.0  # exponential backoff
+    base_delay: float = 1.0
+    backoff_factor: float = 2.0
 
 
 def _is_retryable(exc: Exception) -> bool:
-    """
-    Classify which errors are worth retrying.
-    For now: only msconvert failures (native or docker).
-    """
     return isinstance(exc, MsconvertError)
 
 
@@ -43,6 +42,7 @@ def _run_with_retries(
 
     for attempt in range(retry_policy.max_retries + 1):
         try:
+            logger.debug(f"Starting job for {raw_dir} (attempt {attempt+1})")
             return process_single_raw(
                 raw_dir=raw_dir,
                 msconvert_path=msconvert_path,
@@ -53,8 +53,9 @@ def _run_with_retries(
             )
         except Exception as exc:
             last_exc = exc
-            if not _is_retryable(exc) or attempt == retry_policy.max_retries:
-                # Fatal or out of retries
+
+            if not _is_retryable(exc):
+                logger.error(f"Fatal error on {raw_dir}: {exc}")
                 return JobResult(
                     raw_dir=raw_dir,
                     mzml_path=None,
@@ -62,11 +63,22 @@ def _run_with_retries(
                     error=_format_exception(exc),
                 )
 
-            # Retryable: exponential backoff
+            if attempt == retry_policy.max_retries:
+                logger.error(f"Retries exhausted for {raw_dir}: {exc}")
+                return JobResult(
+                    raw_dir=raw_dir,
+                    mzml_path=None,
+                    success=False,
+                    error=_format_exception(exc),
+                )
+
             delay = retry_policy.base_delay * (retry_policy.backoff_factor**attempt)
+            logger.warning(
+                f"Retryable msconvert failure on {raw_dir}: {exc}. "
+                f"Retrying in {delay:.1f}s (attempt {attempt+1}/{retry_policy.max_retries})"
+            )
             time.sleep(delay)
 
-    # Should not reach here, but keep a safe fallback
     return JobResult(
         raw_dir=raw_dir,
         mzml_path=None,
@@ -98,8 +110,10 @@ def run_parallel(
 
     total = len(raw_dirs)
     if total == 0:
-        print("No .raw folders found.")
+        logger.info("No .raw folders found")
         return []
+
+    logger.info(f"Submitting {total} jobs with {jobs} workers")
 
     with executor_class(max_workers=jobs) as pool:
         futures = {
@@ -121,7 +135,7 @@ def run_parallel(
             try:
                 result = future.result()
             except Exception as exc:
-                # Catastrophic worker failure (should be rare)
+                logger.error(f"Worker crashed on {raw_dir}: {exc}")
                 result = JobResult(
                     raw_dir=raw_dir,
                     mzml_path=None,
@@ -131,11 +145,12 @@ def run_parallel(
 
             results.append(result)
 
-            status = "OK" if result.success else "FAIL"
-            print(f"[{status}] ({idx}/{total}) {raw_dir}")
-            if result.error:
-                print(f"    Error: {result.error.splitlines()[-1]}")
+            if result.success:
+                logger.info(f"[OK]   ({idx}/{total}) {raw_dir}")
+            else:
+                logger.error(
+                    f"[FAIL] ({idx}/{total}) {raw_dir} — {result.error.splitlines()[-1]}"
+                )
 
-    # Preserve deterministic ordering by raw_dir name
     results.sort(key=lambda r: str(r.raw_dir))
     return results

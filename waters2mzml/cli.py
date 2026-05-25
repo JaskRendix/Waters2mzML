@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import typer
@@ -7,6 +8,27 @@ import typer
 from .pipeline import run_pipeline, run_pipeline_parallel
 
 app = typer.Typer(help="Waters .raw → .mzML conversion and annotation tool")
+
+
+def setup_logging(level: str) -> None:
+    """
+    Configure global structured logging.
+    Safe to call multiple times.
+    """
+    logger = logging.getLogger("waters2mzml")
+
+    if logger.handlers:
+        return  # already configured
+
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    handler.setFormatter(formatter)
+
+    logger.addHandler(handler)
+    logger.setLevel(level.upper())
 
 
 @app.command()
@@ -42,11 +64,18 @@ def convert(
         "-r",
         help="Retry failed msconvert jobs this many times",
     ),
+    log_level: str = typer.Option(
+        "INFO",
+        "--log-level",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR)",
+    ),
 ):
     """
     Convert Waters .raw data to mzML and annotate scans/MS levels.
     Supports both sequential and parallel execution.
     """
+    setup_logging(log_level)
+
     if parallel <= 1:
         # Sequential pipeline
         run_pipeline(

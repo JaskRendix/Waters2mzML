@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +9,8 @@ from .config import default_paths
 from .job import process_single_raw
 from .parallel import run_parallel
 from .paths import clean_raw_folder, ensure_dirs, list_raw_folders
+
+logger = logging.getLogger("waters2mzml.pipeline")
 
 
 def run_pipeline(
@@ -32,11 +35,15 @@ def run_pipeline(
 
     raw_dirs = list_raw_folders(paths.raw_dir)
     if not raw_dirs:
-        print("No .raw folders found.")
+        logger.info("No .raw folders found")
         return
 
+    total = len(raw_dirs)
+    logger.info(f"Starting sequential pipeline on {total} RAW folders")
+
     for idx, raw_dir in enumerate(raw_dirs, start=1):
-        print(f"[SEQ] ({idx}/{len(raw_dirs)}) Processing {raw_dir}")
+        logger.info(f"[SEQ] ({idx}/{total}) Processing {raw_dir}")
+
         result = process_single_raw(
             raw_dir=raw_dir,
             msconvert_path=paths.msconvert_path,
@@ -48,20 +55,22 @@ def run_pipeline(
 
         if result.warnings:
             for w in result.warnings:
-                print(f"  WARNING: {w}")
+                logger.warning(f"{raw_dir}: {w}")
 
         if not result.success:
-            print(f"  ERROR: {result.error}")
+            logger.error(f"{raw_dir}: {result.error}")
         else:
-            print(f"  Wrote {result.mzml_path}")
+            logger.info(f"{raw_dir}: wrote {result.mzml_path}")
 
         if result.qc:
-            print(f"  TIC points: {len(result.qc.tic)}")
-            print(f"  Max TIC: {max(result.qc.tic):.2f}")
-            print(f"  Max BPC: {max(result.qc.bpc):.2f}")
-            print(f"  Median peak count: {int(np.median(result.qc.peak_counts))}")
+            logger.info(
+                f"{raw_dir}: TIC={len(result.qc.tic)}, "
+                f"MaxTIC={max(result.qc.tic):.2f}, "
+                f"MaxBPC={max(result.qc.bpc):.2f}, "
+                f"MedianPeaks={int(np.median(result.qc.peak_counts))}"
+            )
 
-    print("\nAnnotation completed.\n")
+    logger.info("Sequential annotation completed")
 
 
 def run_pipeline_parallel(
@@ -95,10 +104,10 @@ def run_pipeline_parallel(
 
     raw_dirs = list_raw_folders(paths.raw_dir)
     if not raw_dirs:
-        print("No .raw folders found.")
+        logger.info("No .raw folders found")
         return
 
-    print(f"Running in PARALLEL mode with {jobs} workers\n")
+    logger.info(f"Running parallel pipeline with {jobs} workers")
 
     results = run_parallel(
         raw_dirs=raw_dirs,
@@ -111,28 +120,27 @@ def run_pipeline_parallel(
         do_postprocess=do_postprocess,
     )
 
-    print("\n=== Parallel Processing Summary ===\n")
+    logger.info("Parallel processing summary:")
 
     for result in results:
         raw_dir = result.raw_dir
+
         if result.success:
-            print(f"[OK]   {raw_dir}")
-            print(f"       → {result.mzml_path}")
+            logger.info(f"[OK]   {raw_dir} → {result.mzml_path}")
 
             if result.warnings:
                 for w in result.warnings:
-                    print(f"       WARNING: {w}")
+                    logger.warning(f"{raw_dir}: {w}")
 
             if result.qc:
-                print(f"       TIC points: {len(result.qc.tic)}")
-                print(f"       Max TIC: {max(result.qc.tic):.2f}")
-                print(f"       Max BPC: {max(result.qc.bpc):.2f}")
-                print(
-                    f"       Median peak count: {int(np.median(result.qc.peak_counts))}"
+                logger.info(
+                    f"{raw_dir}: TIC={len(result.qc.tic)}, "
+                    f"MaxTIC={max(result.qc.tic):.2f}, "
+                    f"MaxBPC={max(result.qc.bpc):.2f}, "
+                    f"MedianPeaks={int(np.median(result.qc.peak_counts))}"
                 )
 
         else:
-            print(f"[FAIL] {raw_dir}")
-            print(f"       ERROR: {result.error}")
+            logger.error(f"[FAIL] {raw_dir}: {result.error}")
 
-    print("\nAnnotation completed.\n")
+    logger.info("Parallel annotation completed")

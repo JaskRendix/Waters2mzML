@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import glob
+import logging
 import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+logger = logging.getLogger("waters2mzml.annotation")
 
 
 @dataclass
@@ -54,7 +57,8 @@ def _find_lockmass_by_reference(lines: list[bytes]) -> str | None:
 
 def _find_last_function_header(lines: list[bytes]) -> str | None:
     """
-    Find the last 'Function Parameters - Function X' header.
+    Find the last 'Function Parameters - Function X' header
+    and return ONLY the function number as a string.
     """
     last = None
     for line in lines:
@@ -65,6 +69,7 @@ def _find_last_function_header(lines: list[bytes]) -> str | None:
     if last is None:
         return None
 
+    # Extract just the integer
     return _extract_first_integer(last)
 
 
@@ -216,13 +221,15 @@ def annotate_raw_folder(raw_dir: Path) -> RawAnnotationResult:
     Delete lockmass and higher functions in a .raw folder and
     return a structured annotation result with validation info.
     """
+    logger.info(f"Annotating RAW folder {raw_dir}")
+
     warnings: list[str] = []
     errors: list[str] = []
 
     try:
         lines = _read_extern_inf(raw_dir)
     except FileNotFoundError as e:
-        # Hard error: cannot proceed without _extern.inf
+        logger.error(f"{raw_dir}: missing _extern.inf")
         return RawAnnotationResult(
             raw_dir=raw_dir,
             lockmass_function=1,
@@ -247,6 +254,11 @@ def annotate_raw_folder(raw_dir: Path) -> RawAnnotationResult:
     clean_ref = str(lockmass_fn)
     func_found, func_deleted = _delete_functions_from(raw_dir, clean_ref)
 
+    logger.debug(
+        f"{raw_dir}: lockmass={lockmass_fn}, extern_lines={extern_lines}, "
+        f"func_found={func_found}, func_deleted={func_deleted}"
+    )
+
     return RawAnnotationResult(
         raw_dir=raw_dir,
         lockmass_function=lockmass_fn,
@@ -259,4 +271,5 @@ def annotate_raw_folder(raw_dir: Path) -> RawAnnotationResult:
 
 
 def annotate_all_raw(raw_dirs: list[Path]) -> list[RawAnnotationResult]:
+    logger.debug(f"Annotating {len(raw_dirs)} RAW folders")
     return [annotate_raw_folder(rd) for rd in raw_dirs]
