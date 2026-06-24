@@ -35,7 +35,9 @@ def _renumber_scans(lines: list[str]) -> list[str]:
     scan 2 → 2,2,2
     """
     logger.debug("Renumbering scans")
+
     out = []
+    prev_original = None
     current_scan = None
     next_scan = 1
 
@@ -46,7 +48,8 @@ def _renumber_scans(lines: list[str]) -> list[str]:
         if m:
             original = int(m.group(1))
 
-            if current_scan is None or original != current_scan:
+            if prev_original is None or original != prev_original:
+                prev_original = original
                 current_scan = next_scan
                 next_scan += 1
 
@@ -119,12 +122,18 @@ def postprocess_mzml(mzml_path: Path, lockmass_func: int) -> QCResult | None:
     bpc = []
     peak_counts = []
 
-    with mzml.read(mzml_path) as reader:
+    with mzml.read(mzml_path.as_posix()) as reader:
         for spec in reader:
             if spec.get("ms level") == 1:
                 intensities = spec["intensity array"]
+
                 tic.append(float(sum(intensities)))
-                bpc.append(float(max(intensities)))
+
+                if intensities.size > 0:
+                    bpc.append(float(max(intensities)))
+                else:
+                    bpc.append(0.0)
+
                 peak_counts.append(len(intensities))
 
     qc = QCResult(tic=tic, bpc=bpc, peak_counts=peak_counts)
