@@ -3,6 +3,7 @@ from waters2mzml.mzml_postprocess import (
     _read_text,
     _renumber_scans,
     _write_text,
+    postprocess_mzml,
 )
 
 
@@ -143,8 +144,6 @@ def test_postprocess_synthetic_fixture(tmp_path):
     p = tmp_path / "test.mzML"
     p.write_text("<binaryDataArrayList> scan=1 & stuff\n")
 
-    from waters2mzml.mzml_postprocess import postprocess_mzml
-
     qc = postprocess_mzml(p, lockmass_func=3)
 
     assert qc is None
@@ -153,7 +152,8 @@ def test_postprocess_synthetic_fixture(tmp_path):
 
 def test_postprocess_real_mzml_qc(tmp_path):
     p = tmp_path / "real.mzML"
-    p.write_text("""
+    p.write_text(
+        """
 <mzML xmlns="http://psi.hupo.org/ms/mzml">
   <run>
     <spectrum id="scan=1" defaultArrayLength="0">
@@ -175,16 +175,15 @@ def test_postprocess_real_mzml_qc(tmp_path):
     </spectrum>
   </run>
 </mzML>
-""")
+"""
+    )
 
-    from waters2mzml.mzml_postprocess import postprocess_mzml
     qc = postprocess_mzml(p, lockmass_func=3)
 
     assert qc is not None
     assert qc.tic == [0.0]
     assert qc.bpc == [0.0]
     assert qc.peak_counts == [0]
-
 
 
 def test_read_write_text(tmp_path):
